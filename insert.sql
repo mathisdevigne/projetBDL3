@@ -6,12 +6,12 @@ delete from joue;
 delete from compose;
 delete from interprete;
 delete from scenarise;
-delete from contenu_type;
 delete from mot_clef;
 delete from achat;
 delete from loue;
 delete from saison;
 delete from contenu;
+delete from contenu_type;
 delete from theme;
 delete from classification;
 delete from personne;
@@ -43,7 +43,17 @@ insert into theme(nomtheme)
     from V_THEMATIC
 ;
 
-insert into contenu (titre, description, duree, pays, anneeProd, classification, themeprincipal) 
+insert into contenu_type (nomType)
+    select distinct (case 
+                    when ((d.type = 'TV Show' and (d.listed_in like '%Kid%' or d.listed_in like '%Teen%')) or (d.type = 'Movie' and (d.listed_in like '%Children%' or d.listed_in like '%Family%'))) then 'Jeunesse' 
+                    when (d.type = 'TV Show' ) then 'Series'
+                    when (d.type = 'Movie' and (d.listed_in like '%Stand-Up Comedy%' or d.listed_in like '%Stand-Up Comedy & Talk Shows%')) then 'Divertissement'
+                    else 'Cinéma'
+                  end)
+    from datanetflouze d
+;
+
+insert into contenu (titre, description, duree, pays, anneeProd, classification, themeprincipal, type) 
     select d.title, 
            d.description, 
            to_number(substr(d.duration, 1, instr(d.duration, ' ')-1)) , 
@@ -53,8 +63,9 @@ insert into contenu (titre, description, duree, pays, anneeProd, classification,
             end), 
            to_date(d.release_year, 'yyyy'), 
            c.idclassification, 
-           t.idtheme
-    from datanetflouze d, classification c, theme t, v_thematic vt
+           t.idtheme,
+           ct.idContenuType
+    from datanetflouze d, classification c, theme t, v_thematic vt, contenu_type ct
     where c.nomclassification = (case d.rating
                                     when 'TV-Y' then 'Tous publics'
                                     when 'TV-G' then 'Tous publics'
@@ -70,32 +81,27 @@ insert into contenu (titre, description, duree, pays, anneeProd, classification,
                                     when 'NC-17' then '-18'
                                     else 'Null'
                                 end) and 
+          ct.nomtype =  (case 
+                            when ((d.type = 'TV Show' and (d.listed_in like '%Kid%' or d.listed_in like '%Teen%')) or (d.type = 'Movie' and (d.listed_in like '%Children%' or d.listed_in like '%Family%'))) then 'Jeunesse' 
+                            when (d.type = 'TV Show' ) then 'Series'
+                            when (d.type = 'Movie' and (d.listed_in like '%Stand-Up Comedy%' or d.listed_in like '%Stand-Up Comedy & Talk Shows%')) then 'Divertissement'
+                            else 'Cinéma'
+                        end) and
           t.nomtheme = vt.val and 
           vt.pos = 1 and
           vt.show_id = d.show_id              
 ;
 
-insert into contenu_type (refContenu, nomType)
-    select distinct c.ref, (case 
-                    when ((d.type = 'TV Show' and (d.listed_in like '%Kid%' or d.listed_in like '%Teen%')) or (d.type = 'Movie' and (d.listed_in like '%Children%' or d.listed_in like '%Family%'))) then 'Jeunesse' 
-                    when (d.type = 'TV Show' ) then 'Series'
-                    when (d.type = 'Movie' and (d.listed_in like '%Stand-Up Comedy%' or d.listed_in like '%Stand-Up Comedy & Talk Shows%')) then 'Divertissement'
-                    else 'Cinéma'
-                  end)
-    from contenu c, datanetflouze d
-    where c.titre = d.title
-;
-
 begin
-    for serie in (select * 
+    for serie in (select c.* 
                 from contenu c, contenu_type ct
-                where ct.refContenu = c.ref and 
+                where ct.idContenuType = c.type and 
                     ct.nomtype = 'Series') 
     loop
         for nb_saison in 1..(serie.duree)
         loop
-            insert into contenu (titre, description, duree, pays, anneeProd, classification, themeprincipal)
-            values (serie.titre||' - Saison '||nb_saison, serie.description, null, serie.pays, serie.anneeProd, serie.classification, serie.themeprincipal);
+            insert into contenu (titre, description, duree, pays, anneeProd, classification, themeprincipal, type)
+            values (serie.titre||' - Saison '||nb_saison, serie.description, null, serie.pays, serie.anneeProd, serie.classification, serie.themeprincipal, serie.type);
             insert into saison (serie, saison)
             values (serie.ref, (select ref from contenu where titre = serie.titre||' - Saison '||nb_saison));
         end loop;
@@ -146,7 +152,7 @@ insert into joue (idPers, refContenu)
     from contenu_type ct, contenu c, personne p, datanetflouze d, v_cast vc
     where d.show_id = vc.show_id and
           ((c.titre = d.title and ct.nomType = 'Cinéma') or (d.title = SUBSTR(c.titre, 1, INSTR(c.titre, ' - Saison')-1) and ct.nomType = 'Series')) and
-          ct.refContenu = c.ref and 
+          ct.idContenuType = c.type and 
           SUBSTR(vc.val, INSTR(vc.val, ' ')+1) = p.nom and  
           SUBSTR(vc.val, 1, INSTR(vc.val, ' ')-1) = p.prenom         
 ;
@@ -154,7 +160,7 @@ insert into joue (idPers, refContenu)
 insert into compose (idPers, refContenu)
 select p.idPers, c.ref
     from contenu c, personne p, datanetflouze d, v_cast vc, contenu_type ct
-    where ct.refContenu = c.ref and 
+    where ct.idContenuType = c.type and 
           d.show_id = vc.show_id and 
           c.titre = d.title and
           SUBSTR(vc.val, INSTR(vc.val, ' ')+1) = p.nom and  
@@ -166,7 +172,7 @@ select p.idPers, c.ref
 insert into interprete (idPers, refContenu)
 select p.idPers, c.ref
     from contenu c, personne p, datanetflouze d, v_cast vc, contenu_type ct
-    where ct.refContenu = c.ref and 
+    where ct.idContenuType = c.type and 
           d.show_id = vc.show_id and 
           c.titre = d.title and
           SUBSTR(vc.val, INSTR(vc.val, ' ')+1) = p.nom and  

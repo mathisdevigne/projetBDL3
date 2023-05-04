@@ -45,7 +45,7 @@ create table contenu (
     lien varchar2(100),
     evaluation float(2),
     pays varchar2(20),
-    anneeProd date not null,
+    anneeProd integer not null,
     classification integer not null,
     themePrincipal integer not null,
     type integer not null,

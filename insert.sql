@@ -61,7 +61,7 @@ insert into contenu (titre, description, duree, pays, anneeProd, classification,
                 when INSTR(d.country, ', ') < 1 then d.country 
                 else SUBSTR(d.country, 1, INSTR(d.country, ', ')-1) 
             end), 
-           to_date(d.release_year, 'yyyy'), 
+           d.release_year, 
            c.idclassification, 
            t.idtheme,
            ct.idContenuType

@@ -286,6 +286,7 @@ drop table loue cascade constraints;
 create table loue (
     compte integer not null,
     refContenu integer not null,
+    dateDebut date,
     dateFin date not null,
     constraint PK_LOUE primary key (compte, refContenu),
     constraint FK_COMPTE_LOUE foreign key (compte) references compte(id),

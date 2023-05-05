@@ -42,7 +42,7 @@ insert into compte(id, nom, prenom, email, tel, mdp, adresse)
 values (1, 'Dupont', 'Jean', 'dupontj@mail.com', '0606060606', 'mdp', 1);
 
 insert into abonnement (idCompte,typeAbonnement,dateDeb,dateFin)
-values (1, 1, to_date('05/05/2023', 'dd/mm/yyyy'), to_date('06/06/2023', 'dd/mm/yyyy'));
+values (1, 1, to_date('05/04/2023', 'dd/mm/yyyy'), to_date('06/05/2023', 'dd/mm/yyyy'));
 
 insert into achat (compte, refContenu)
 values (1, (SELECT ref FROM
@@ -65,7 +65,7 @@ values (1,
             ORDER BY dbms_random.value)
             WHERE rownum = 1
         ),
-        to_date('21/05/2023', 'dd/mm/yyyy')
+        to_date('21/04/2023', 'dd/mm/yyyy')
         );
 
 -- Client 2
@@ -229,7 +229,7 @@ insert into compte(id, nom, prenom, email, tel, mdp, adresse)
 values (6, 'Durant', 'Jeanne', 'durantj@mail.com', '0606060505', 'mdp', 4);
 
 insert into abonnement (idCompte,typeAbonnement,dateDeb,dateFin)
-values (6, 1, to_date('01/05/2023', 'dd/mm/yyyy'), to_date('02/07/2023', 'dd/mm/yyyy'));
+values (6, 2, to_date('01/05/2023', 'dd/mm/yyyy'), to_date('02/07/2023', 'dd/mm/yyyy'));
 
 insert into loue (compte, refContenu, dateFin)
 values (6, 
@@ -251,14 +251,11 @@ values (6,
         to_date('21/05/2023', 'dd/mm/yyyy')
         );
 
-insert into loue (compte, refContenu, dateFin)
-values (6, 
-        (SELECT ref FROM
+insert into achat (compte, refContenu)
+values (6, (SELECT ref FROM
             (SELECT ref FROM contenu
             ORDER BY dbms_random.value)
-            WHERE rownum = 1
-        ),
-        to_date('21/05/2023', 'dd/mm/yyyy')
+            WHERE rownum = 1)
         );
 
 -- Client 7

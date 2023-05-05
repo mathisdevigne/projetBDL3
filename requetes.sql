@@ -23,17 +23,24 @@ WHERE com.nom = 'Dupont' AND
 -- 3. Pour chaque abonné, son nombre de contenus empruntés et le nombre qu’il peut encore emprunter compte tenu de son abonnement.
 ----------------------------------------------------------------------------------------------------------------------
 SELECT c.id, COUNT(l.refContenu) AS nb_contenus_empruntés,
-	  (-COUNT(l.refContenu) + (CASE abo.nom
-									WHEN 'Basique' THEN 2 
-									WHEN 'Premium' THEN 5 
-									WHEN 'VIP'     THEN 10
-								END)
-		) AS nb_contenus_restants
+	  (abo.nombrecontenu - COUNT(l.refContenu)) AS nb_contenus_restants
 FROM Compte c, loue l, type_abonnement abo, abonnement a
-WHERE c.id = l.compte AND
-	  c.id = a.idcompte AND
+WHERE c.id = a.idcompte AND
+	  c.id = l.compte AND (l.datefin > sysdate) and
 	  a.typeAbonnement = abo.id
-GROUP BY (c.id);
+GROUP BY (c.id, abo.nombrecontenu)
+union
+SELECT c.id, 0 AS nb_contenus_empruntés,
+	  (abo.nombrecontenu) AS nb_contenus_restants
+FROM Compte c, type_abonnement abo, abonnement a
+WHERE c.id = a.idcompte ANd
+	  a.typeAbonnement = abo.id and
+	  c.id not in (SELECT c.id
+					FROM Compte c, loue l
+					WHERE c.id = l.compte AND 
+					(l.datefin > sysdate)
+					GROUP BY (c.id))
+GROUP BY (c.id, abo.nombrecontenu);
 
 -- 4. Liste (sans doublon) des acteurs ayant tourné un film réalisé par David Fincher; pour chaque acteur vous indiquerez le nombre de films tournés avec ce réalisateur.
 ----------------------------------------------------------------------------------------------------------------------
@@ -146,17 +153,84 @@ WHERE r.refContenu = c.ref AND
 GROUP BY (p.nom, p.prenom)
 HAVING COUNT(c.ref) > (SELECT AVG(COUNT(c.ref)) FROM contenu c GROUP BY c.ref);
 
-/* REQUETE 15 */
+-- 15. Liste des réalisateurs ayant réalisé des contenu de thèmes "Sci-Fi & Fantasy" et "TV Action & Adventure".
+----------------------------------------------------------------------------------------------------------------------
 
-/* REQUETE 16 */
+SELECT DISTINCT p.nom, p.prenom
+FROM personne p, scenarise r, contenu c, theme t, mot_clef mc
+WHERE mc.idtheme = t.idTheme AND
+	t.nomTheme IN ('Sci-Fi & Fantasy', 'TV Action & Adventure') and 
+	mc.refcontenu = c.ref and 
+	p.idPers = r.idPers AND
+	c.ref = r.refContenu
+GROUP BY p.nom, p.prenom
+HAVING COUNT(distinct t.nomtheme) = 2;
 
-/* REQUETE 17, j'ai un doute sur comment marche les mots cle */
+-- 16. Le ou les réalisateurs ayant réalisé le ou les films les plus loués
+----------------------------------------------------------------------------------------------------------------------
 
-/* REQUETE 18, meme pb */
+SELECT p.nom, c.titre, count(l.refContenu) as nb_locations
+FROM scenarise s, contenu c, loue l, personne p
+WHERE c.ref = s.refContenu AND 
+	  l.refContenu = c.ref and 
+	  p.idpers = s.idpers
+GROUP BY p.nom, c.titre, l.refcontenu
+HAVING count(l.refContenu) = (SELECT MAX(count(l.refContenu)) 
+							FROM scenarise s, contenu c, loue l, personne p
+							WHERE c.ref = s.refContenu AND 
+								l.refContenu = c.ref and 
+								p.idpers = s.idpers
+							GROUP BY p.nom, c.titre, l.refcontenu);
 
-/* REQUETE 19, t'as compris */
+-- 17. Liste des films n'ayant aucun mot clé en commun avec le film The Founder
+----------------------------------------------------------------------------------------------------------------------
 
-/* REQUETE 20, bon ok c'est tj la meme */
+SELECT c.titre
+FROM contenu c
+WHERE c.titre not in (SELECT distinct c.titre
+						FROM contenu c, mot_clef m, theme t
+						WHERE ((m.refContenu = c.ref AND t.idTheme = m.idTheme) or c.themeprincipal = t.idtheme) and 
+							t.nomtheme = (SELECT distinct t.nomtheme
+											FROM contenu c, mot_clef m, theme t
+											WHERE c.titre = 'The Founder' and 
+											((m.refContenu = c.ref AND t.idTheme = m.idTheme) or c.themeprincipal = t.idtheme))
+					  );
+
+-- 18. Liste des films ayant au moins un mot clé en commun avec le film The Founder
+----------------------------------------------------------------------------------------------------------------------
+
+SELECT distinct c.titre
+FROM contenu c, mot_clef m, theme t
+WHERE ((m.refContenu = c.ref AND t.idTheme = m.idTheme) or c.themeprincipal = t.idtheme) and 
+	t.nomtheme = (SELECT distinct t.nomtheme
+					FROM contenu c, mot_clef m, theme t
+					WHERE c.titre = 'The Founder' and 
+					((m.refContenu = c.ref AND t.idTheme = m.idTheme) or c.themeprincipal = t.idtheme))
+;
+
+-- 19. Liste des films ayant au moins les mêmes mots clés que le film The Founder
+----------------------------------------------------------------------------------------------------------------------
+
+SELECT c.titre
+FROM contenu c, mot_clef mc, theme t
+WHERE c.ref <> (SELECT c2.ref FROM contenu c2 WHERE c2.titre = 'The Founder')
+	AND mc.refContenu = c.ref AND t.idTheme = mc.idTheme
+	AND t.nomTheme IN (SELECT t.nomTheme
+					  FROM contenu c, mot_clef mc, theme t
+					  WHERE mc.refContenu = c.ref AND t.idTheme = mc.idTheme
+							AND c.titre = 'The Founder');
+
+-- 20. Liste des films ayant exactement les mêmes mots clés que le film The Founder
+----------------------------------------------------------------------------------------------------------------------
+
+SELECT c.titre
+FROM contenu c, mot_clef mc, theme t
+WHERE c.ref <> (SELECT c2.ref FROM contenu c2 WHERE c2.titre = 'The Founder')
+	AND mc.refContenu = c.ref AND t.idTheme = mc.idTheme
+	AND t.nomTheme = (SELECT t.nomTheme
+					  FROM contenu c, mot_clef mc, theme t
+					  WHERE mc.refContenu = c.ref AND t.idTheme = mc.idTheme
+							AND c.titre = 'The Founder');
 
 
 
